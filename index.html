@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liars Dice</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        #globalDiv {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            width: 140px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        input[type="text"] {
+            width: 180px;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        #lobbyInput {
+            width: 100%;
+            margin-left: 80px;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="globalDiv">
+        <h1>Welcome to Liars Dice</h1>
+        <button id="createLobby">Create Lobby</button>
+        <button id="joinLobby">Join Lobby</button>
+        <div id="lobbyInput" style="display: none;">
+            <input type="text" id="lobbyId" placeholder="Enter Lobby ID" style="display: none;">
+            <button id="submitJoin" style="display: none; margin-left: 20px;">Submit</button>
+        </div>
+    </div>
+
+    <script src="start.js"></script>
+</body>
+
+</html>

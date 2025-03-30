@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobby</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        #globalDiv {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1,
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        input[type="checkbox"],
+        select {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="globalDiv">
+        <h1>Lobby</h1>
+        <p id="lobbyInfo"></p>
+        <h2>Players</h2>
+        <ul id="playerList"></ul>
+        <h2>Settings</h2>
+        <div>
+            <label>
+                <input type="checkbox" id="wildDice" disabled>
+                Wild Dice
+            </label>
+            <label>
+                Mode:
+                <select id="mode" disabled>
+                    <option value="standard">Standard</option>
+                    <option value="elimination">Elimination</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    <script src="lobby.js"></script>
+</body>
+
+</html>
