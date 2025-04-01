@@ -27,6 +27,10 @@ app.get('/start.js', (req, res) => {
 }
 );
 
+app.get('/game.html', (req, res) => {
+    res.sendFile(__dirname + '/game.html');
+});
+
 // Endpoint do obsługi tworzenia/dołączania do lobby
 app.post('/lobby', (req, res) => {
     const { action, lobbyId } = req.body;
@@ -74,7 +78,7 @@ wss.on('connection', (ws) => {
         const { action, lobbyId, playerName, settings } = data; // Dane odbierane od klienta
 
         if (action === 'join') { // Dołączenie do lobby
-            if (lobbies[lobbyId]) {
+            if (lobbies[lobbyId] && !lobbies[lobbyId].gameStarted) { // Prevent joining if game has started
                 if (!lobbies[lobbyId].players.includes(playerName)) {
                     lobbies[lobbyId].players.push(playerName);
                 }
@@ -83,6 +87,13 @@ wss.on('connection', (ws) => {
                 }
                 ws.lobbyId = lobbyId;
                 broadcastLobbyUpdate(lobbyId);
+            } else {
+                ws.send(JSON.stringify({ action: 'redirect', url: '/' }));
+            }
+        } else if (action === 'startGame') { // Rozpoczęcie gry
+            if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName && lobbies[lobbyId].players.length >= 2) {
+                lobbies[lobbyId].gameStarted = true; // Mark game as started
+                broadcastLobbyUpdate(lobbyId, true); // Notify all players to redirect to game.html
             }
         } else if (action === 'updateSettings') { // Aktualizacja ustawień lobby
             if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName) {
@@ -123,7 +134,7 @@ wss.on('connection', (ws) => {
 });
 
 // Wysyłanie aktualizacji lobby
-function broadcastLobbyUpdate(lobbyId) {
+function broadcastLobbyUpdate(lobbyId, gameStarted = false) {
     const lobby = lobbies[lobbyId];
     if (lobby) {
         const message = JSON.stringify({
@@ -131,6 +142,7 @@ function broadcastLobbyUpdate(lobbyId) {
             lobbyId,
             players: lobby.players,
             settings: lobby.settings || { wildDice: false, mode: 'standard' },
+            gameStarted,
         });
         wss.clients.forEach((client) => { // Wysyłanie wiadomości do wszystkich klientów
             if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {

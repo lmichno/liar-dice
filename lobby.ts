@@ -29,15 +29,19 @@ ws.onopen = () => { // Otwarcie połączenia Websocket
 };
 
 ws.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzących
-    const data: { action: string; lobbyId: string; players: string[]; settings: { wildDice: boolean; mode: string } } = JSON.parse(event.data);
+    const data: { action: string; lobbyId: string; players: string[]; settings: { wildDice: boolean; mode: string }, gameStarted?: boolean } = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
-        updateLobby(data); // Aktualizacja lobby
+        if (data.gameStarted) {
+            window.location.href = `/game.html?lobbyId=${lobbyId}`;
+            return;
+        }
+        updateLobby(data);
 
-        // Update Start Game button based on host status
-        if (data.players[0] === playerName) { // Gracz jest gospodarzem
+        // Update Start Game button based on host status and player count
+        if (data.players[0] === playerName && data.players.length >= 2) {
             startGameButton!.disabled = false;
             startGameButton!.style.cursor = 'pointer';
-        } else { // Gracz nie jest gospodarzem
+        } else {
             startGameButton!.disabled = true;
             startGameButton!.style.cursor = 'not-allowed';
         }
@@ -60,7 +64,7 @@ const leaveLobbyButton = document.getElementById('leaveLobby') as HTMLButtonElem
 
 startGameButton?.addEventListener('click', () => {
     if (lobbyId && playerName && !startGameButton.disabled) {
-        ws.send(JSON.stringify({ action: 'startGame', lobbyId, playerName })); // Wysłanie prośby o rozpoczęcie gry
+        ws.send(JSON.stringify({ action: 'startGame', lobbyId, playerName })); // Notify server to start the game
     }
 });
 
