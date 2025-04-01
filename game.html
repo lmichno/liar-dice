@@ -5,11 +5,290 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Winky+Sans:ital,wght@0,300..900;1,300..900&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Winky Sans', Arial;
+            color: rgb(230, 230, 230);
+            transition: all 0.1s ease;
+            user-select: none;
+
+            &:hover {
+                scale: 1.02;
+            }
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: darkgray;
+        }
+
+        #gameContainer {
+            text-align: center;
+            background-color: gray;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        #playersList {
+            display: flex;
+            align-content: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .player {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            width: 190px;
+            text-align: center;
+        }
+
+        .player.current {
+            border: 2px solid rgba(0, 255, 0, 0.7);
+        }
+
+        .dice {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .dice img {
+            width: 30px;
+            height: 30px;
+        }
+
+        .hiddenDice {
+            filter: brightness(0.3);
+        }
+
+        #gameArea {
+            display: flex;
+            justify-content: center;
+            align-items: top;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        #lastBet {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            width: 200px;
+            height: 240px;
+            text-align: center;
+        }
+
+        #lastBetDetails {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+        }
+
+        #betContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        #challengeContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 10px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        #challengeContainer button {
+            width: 100px;
+        }
+
+        #actionContainer {
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            width: 300px;
+            height: 240px;
+            text-align: center;
+        }
+
+        button {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+
+            &:hover {
+                scale: 1.2;
+            }
+
+            &:active {
+                scale: 0.9;
+            }
+        }
+
+        select {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: none;
+            border-radius: 10px;
+            padding: 5px;
+            height: 40px;
+            cursor: pointer;
+            width: 100px;
+        }
+
+        #diceOption1 {
+            background-image: url('dice1.png');
+            background-repeat: no-repeat;
+        }
+
+        #diceOption2 {
+            background-image: url('dice2.png');
+            background-repeat: no-repeat;
+        }
+
+        #diceOption3 {
+            background-image: url('dice3.png');
+            background-repeat: no-repeat;
+        }
+
+        #diceOption4 {
+            background-image: url('dice4.png');
+            background-repeat: no-repeat;
+        }
+
+        #diceOption5 {
+            background-image: url('dice5.png');
+            background-repeat: no-repeat;
+        }
+
+        #diceOption6 {
+            background-image: url('dice6.png');
+            background-repeat: no-repeat;
+        }
+
+        .custom-dropdown {
+            position: relative;
+            display: inline-block;
+            width: 100px;
+            height: 30px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .custom-dropdown img {
+            vertical-align: middle;
+            width: 25px;
+            height: 25px;
+        }
+
+        .custom-dropdown-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            z-index: 10;
+        }
+
+        .custom-dropdown-options div {
+            padding: 5px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .custom-dropdown-options div:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .custom-dropdown:hover .custom-dropdown-options {
+            display: block;
+        }
+
+        #lastBetDetails {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            flex-direction: row;
+        }
+
+        p>img {
+            filter: invert();
+        }
+    </style>
 </head>
 
 <body>
-    <h1>Game in Progress</h1>
-    <p>Welcome to the game! The match has started.</p>
+    <div id="gameContainer">
+        <h1>Liars Dice</h1>
+        <div id="gameArea">
+            <div id="playersList">
+                <h2>Players</h2>
+            </div>
+            <div id="lastBet">
+                <h2>Last Bet</h2>
+                <div id="lastBetDetails"></div>
+            </div>
+            <div id="actionContainer">
+                <h2>Actions</h2>
+                <div id="betContainer">
+                    <div>
+                        <div id="diceDropdown" class="custom-dropdown"></div>
+                        <div id="betDropdown" class="custom-dropdown"></div>
+                    </div>
+                    <button id="betButton">Bet</button>
+                </div>
+                <div id="challengeContainer">
+                    <button id="challengeButton">Challenge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
 </body>
 
 </html>

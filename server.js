@@ -31,12 +31,16 @@ app.get('/game.html', (req, res) => {
     res.sendFile(__dirname + '/game.html');
 });
 
+app.get('/game.js', (req, res) => {
+    res.sendFile(__dirname + '/game.js');
+});
+
 // Endpoint do obsługi tworzenia/dołączania do lobby
 app.post('/lobby', (req, res) => {
     const { action, lobbyId } = req.body;
 
     if (action === 'create') {
-        const newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase(); // Generowanie ID lobby
+        let newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase(); // Generowanie ID lobby
 
         while (lobbies[newLobbyId]) { // Sprawdzenie, czy lobby już istnieje
             newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase();
@@ -71,14 +75,41 @@ app.get('/correct.png', (req, res) => {
     res.sendFile(__dirname + '/correct.png');
 });
 
+
+
+app.get('/dice1.png', (req, res) => {
+    res.sendFile(__dirname + '/dice1.png');
+});
+app.get('/dice2.png', (req, res) => {
+    res.sendFile(__dirname + '/dice2.png');
+});
+app.get('/dice3.png', (req, res) => {
+    res.sendFile(__dirname + '/dice3.png');
+});
+app.get('/dice4.png', (req, res) => {
+    res.sendFile(__dirname + '/dice4.png');
+});
+app.get('/dice5.png', (req, res) => {
+    res.sendFile(__dirname + '/dice5.png');
+});
+app.get('/dice6.png', (req, res) => {
+    res.sendFile(__dirname + '/dice6.png');
+});
+app.get('/dice0.png', (req, res) => {
+    res.sendFile(__dirname + '/dice0.png');
+});
+
 // Komunikacja websocket
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         const data = JSON.parse(message);
-        const { action, lobbyId, playerName, settings } = data; // Dane odbierane od klienta
+        const { action, lobbyId, playerName, settings, bet } = data; // Dane odbierane od klienta
 
         if (action === 'join') { // Dołączenie do lobby
-            if (lobbies[lobbyId] && !lobbies[lobbyId].gameStarted) { // Prevent joining if game has started
+            if (!lobbies[lobbyId]) {
+                lobbies[lobbyId] = { players: [], settings: {}, gameStarted: false };
+            }
+            if (lobbies[lobbyId] && !lobbies[lobbyId].gameStarted) { // Sprawdzenie, czy lobby istnieje i gra nie została rozpoczęta
                 if (!lobbies[lobbyId].players.includes(playerName)) {
                     lobbies[lobbyId].players.push(playerName);
                 }
@@ -87,13 +118,18 @@ wss.on('connection', (ws) => {
                 }
                 ws.lobbyId = lobbyId;
                 broadcastLobbyUpdate(lobbyId);
-            } else {
+            }
+            else {
                 ws.send(JSON.stringify({ action: 'redirect', url: '/' }));
             }
         } else if (action === 'startGame') { // Rozpoczęcie gry
             if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName && lobbies[lobbyId].players.length >= 2) {
-                lobbies[lobbyId].gameStarted = true; // Mark game as started
-                broadcastLobbyUpdate(lobbyId, true); // Notify all players to redirect to game.html
+                lobbies[lobbyId].gameStarted = true; // Ustawienie flagi rozpoczęcia gry
+                lobbies[lobbyId].gameState = {
+                    players: lobbies[lobbyId].players.map(name => ({ name, dice: rollDice(5) })),
+                    currentTurn: lobbies[lobbyId].players[0],
+                };
+                broadcastLobbyUpdate(lobbyId, true); // Poinformowanie wszystkich graczy o rozpoczęciu gry
             }
         } else if (action === 'updateSettings') { // Aktualizacja ustawień lobby
             if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName) {
@@ -106,11 +142,54 @@ wss.on('connection', (ws) => {
                 if (lobbies[lobbyId].creator === playerName) {
                     lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null;
                 }
-                if (lobbies[lobbyId].players.length === 0) {
+                if (lobbies[lobbyId].players.length === 0 && !lobbies[lobbyId].gameStarted) {
                     delete lobbies[lobbyId];
                 } else {
                     broadcastLobbyUpdate(lobbyId);
                 }
+            }
+        } else if (action === 'joinGame') { // Dołączenie do gry
+            ws.lobbyId = lobbyId;
+            broadcastGameUpdate(lobbyId);
+        } else if (action === 'placeBet') { // Obsługa zakładów
+            const lobby = lobbies[lobbyId];
+            if (lobby && lobby.gameState.currentTurn === playerName) {
+                const [count, value] = bet.split('x').map(Number); // Parse bet into count and value
+                lobby.gameState.currentBet = { count, value }; // Store bet as an object
+                lobby.gameState.currentTurn = getNextPlayer(lobbyId);
+                broadcastGameUpdate(lobbyId);
+            }
+        } else if (action === 'challenge') { // Obsługa wyzwań
+            const lobby = lobbies[lobbyId];
+            if (lobby && lobby.gameState.currentBet) {
+                const { count, value } = lobby.gameState.currentBet;
+                const wildDiceEnabled = lobby.settings?.wildDice || false;
+
+                const totalDice = lobby.gameState.players.reduce((sum, player) => {
+                    return sum + player.dice.filter(die => die === value || (wildDiceEnabled && die === 1)).length;
+                }, 0);
+
+                const challengerWins = totalDice < count;
+                const previousTurnPlayer = getPreviousPlayer(lobbyId); // Get the player who had the turn before
+                const winner = challengerWins ? playerName : previousTurnPlayer;
+
+                // Broadcast challenge result
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
+                        client.send(JSON.stringify({
+                            action: 'challengeResult',
+                            winner,
+                            totalDice,
+                            bet: { count, value },
+                            wildDice: wildDiceEnabled
+                        }));
+                    }
+                });
+
+                // Update game state for the next turn
+                lobby.gameState.currentTurn = getNextPlayer(lobbyId);
+                delete lobby.gameState.currentBet; // Reset the current bet
+                broadcastGameUpdate(lobbyId);
             }
         }
     });
@@ -123,7 +202,7 @@ wss.on('connection', (ws) => {
             if (lobbies[lobbyId].creator === playerName) {
                 lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null;
             }
-            if (lobbies[lobbyId].players.length === 0) {
+            if (lobbies[lobbyId].players.length === 0 && !lobbies[lobbyId].gameStarted) {
                 delete lobbies[lobbyId];
             } else {
                 broadcastLobbyUpdate(lobbyId);
@@ -142,7 +221,7 @@ function broadcastLobbyUpdate(lobbyId, gameStarted = false) {
             lobbyId,
             players: lobby.players,
             settings: lobby.settings || { wildDice: false, mode: 'standard' },
-            gameStarted,
+            gameStarted, // Include gameStarted flag
         });
         wss.clients.forEach((client) => { // Wysyłanie wiadomości do wszystkich klientów
             if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
@@ -150,6 +229,41 @@ function broadcastLobbyUpdate(lobbyId, gameStarted = false) {
             }
         });
     }
+}
+
+// Wysyłanie aktualizacji gry
+function broadcastGameUpdate(lobbyId) {
+    const gameState = lobbies[lobbyId].gameState;
+
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
+            client.send(JSON.stringify({
+                action: 'gameUpdate',
+                players: gameState.players,
+                currentTurn: gameState.currentTurn,
+                currentBet: gameState.currentBet // Send currentBet as an object
+            }));
+        }
+    });
+}
+
+// Funkcja do rzucania kośćmi
+function rollDice(count) {
+    return Array.from({ length: count }, () => Math.ceil(Math.random() * 6));
+}
+
+// Funkcja do uzyskania następnego gracza
+function getNextPlayer(lobbyId) {
+    const players = lobbies[lobbyId].gameState.players;
+    const currentIndex = players.findIndex(p => p.name === lobbies[lobbyId].gameState.currentTurn);
+    return players[(currentIndex + 1) % players.length].name;
+}
+
+// Funkcja do uzyskania poprzedniego gracza
+function getPreviousPlayer(lobbyId) {
+    const players = lobbies[lobbyId].gameState.players;
+    const currentIndex = players.findIndex(p => p.name === lobbies[lobbyId].gameState.currentTurn);
+    return players[(currentIndex - 1 + players.length) % players.length].name;
 }
 
 server.listen(3000, () => {

@@ -10,14 +10,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId = urlParams.get('lobbyId');
-if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
-    sessionStorage.removeItem("reloaded");
-    window.location.href = "/";
+// if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
+//     sessionStorage.removeItem("reloaded");
+//     window.location.href = "/";
+// } else {
+//     sessionStorage.setItem("reloaded", "true");
+// }
+let playerName = prompt('Enter your name:');
+if (!playerName == null) {
+    playerName = 'Anonymous';
 }
-else {
-    sessionStorage.setItem("reloaded", "true");
-}
-const playerName = prompt('Enter your name:');
 if (!lobbyId || !playerName) {
     window.location.href = '/';
     throw new Error('Missing lobbyId or playerName, redirecting to homepage.');
@@ -34,7 +36,8 @@ ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
         if (data.gameStarted) {
-            window.location.href = `/game.html?lobbyId=${lobbyId}`;
+            sessionStorage.setItem('playerName', playerName); // Store player name for game page
+            window.location.href = `/game.html?lobbyId=${lobbyId}`; // Redirect to game page
             return;
         }
         updateLobby(data);

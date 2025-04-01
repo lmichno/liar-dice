@@ -1,15 +1,18 @@
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId: string | null = urlParams.get('lobbyId');
 
-if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
-    sessionStorage.removeItem("reloaded");
-    window.location.href = "/";
-} else {
-    sessionStorage.setItem("reloaded", "true");
+// if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
+//     sessionStorage.removeItem("reloaded");
+//     window.location.href = "/";
+// } else {
+//     sessionStorage.setItem("reloaded", "true");
+// }
+
+
+let playerName: string | null = prompt('Enter your name:');
+if (playerName === null) {
+    playerName = 'Anonymous';
 }
-
-
-const playerName: string | null = prompt('Enter your name:');
 
 
 if (!lobbyId || !playerName) {
@@ -32,7 +35,8 @@ ws.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzącyc
     const data: { action: string; lobbyId: string; players: string[]; settings: { wildDice: boolean; mode: string }, gameStarted?: boolean } = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
         if (data.gameStarted) {
-            window.location.href = `/game.html?lobbyId=${lobbyId}`;
+            sessionStorage.setItem('playerName', playerName!); // Store player name for game page
+            window.location.href = `/game.html?lobbyId=${lobbyId}`; // Redirect to game page
             return;
         }
         updateLobby(data);
