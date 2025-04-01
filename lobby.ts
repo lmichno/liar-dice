@@ -1,12 +1,12 @@
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId: string | null = urlParams.get('lobbyId');
 
-// if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
-//     sessionStorage.removeItem("reloaded");
-//     window.location.href = "/";
-// } else {
-//     sessionStorage.setItem("reloaded", "true");
-// }
+if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
+    sessionStorage.removeItem("reloaded");
+    window.location.href = "/";
+} else {
+    sessionStorage.setItem("reloaded", "true");
+}
 
 
 const playerName: string | null = prompt('Enter your name:');
@@ -32,6 +32,15 @@ ws.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzącyc
     const data: { action: string; lobbyId: string; players: string[]; settings: { wildDice: boolean; mode: string } } = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
         updateLobby(data); // Aktualizacja lobby
+
+        // Update Start Game button based on host status
+        if (data.players[0] === playerName) { // Gracz jest gospodarzem
+            startGameButton!.disabled = false;
+            startGameButton!.style.cursor = 'pointer';
+        } else { // Gracz nie jest gospodarzem
+            startGameButton!.disabled = true;
+            startGameButton!.style.cursor = 'not-allowed';
+        }
     }
 };
 
@@ -44,6 +53,22 @@ copyImg!.addEventListener('click', async () => { // Obsługa kliknięcia w ikon�
         }
     }
 
+});
+
+const startGameButton = document.getElementById('startGame') as HTMLButtonElement | null;
+const leaveLobbyButton = document.getElementById('leaveLobby') as HTMLButtonElement | null;
+
+startGameButton?.addEventListener('click', () => {
+    if (lobbyId && playerName && !startGameButton.disabled) {
+        ws.send(JSON.stringify({ action: 'startGame', lobbyId, playerName })); // Wysłanie prośby o rozpoczęcie gry
+    }
+});
+
+leaveLobbyButton?.addEventListener('click', () => {
+    if (lobbyId && playerName) {
+        ws.send(JSON.stringify({ action: 'leave', lobbyId, playerName })); // Wysłanie prośby o opuszczenie lobby
+        window.location.href = '/';
+    }
 });
 
 window.addEventListener('beforeunload', () => { // Obsługa zamknięcia okna
@@ -83,14 +108,14 @@ function updateLobby(data: { players: string[]; settings: { wildDice: boolean; m
         slider.classList.remove('disabled');
 
         wildDiceImg.onclick = () => {
-            const newWildDiceState = !data.settings.wildDice; // Toggle wild dice state
-            sendSettingsUpdate(newWildDiceState, modeSwitch.checked ? 'elimination' : 'standard'); // Send updated state to the server
+            const newWildDiceState = !data.settings.wildDice; // Zmiana stanu wildDice
+            sendSettingsUpdate(newWildDiceState, modeSwitch.checked ? 'elimination' : 'standard'); // Wysyłanie aktualizacji ustawień
         };
 
         modeSwitch.onchange = () => {
             const newMode = modeSwitch.checked ? 'elimination' : 'standard';
             slider.setAttribute('data-mode', modeSwitch.checked ? 'Elimination' : 'Standard');
-            sendSettingsUpdate(data.settings.wildDice, newMode); // Send updated mode to the server
+            sendSettingsUpdate(data.settings.wildDice, newMode); // Wysyłanie aktualizacji ustawień
         };
     } else {
         wildDiceImg.style.cursor = 'not-allowed';

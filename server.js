@@ -53,8 +53,7 @@ app.get('/lobby.html', (req, res) => {
 
 app.get('/lobby.js', (req, res) => {
     res.sendFile(__dirname + '/lobby.js');
-}
-);
+});
 
 app.get('/copy.png', (req, res) => {
     res.sendFile(__dirname + '/copy.png');

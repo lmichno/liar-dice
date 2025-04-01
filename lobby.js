@@ -10,12 +10,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId = urlParams.get('lobbyId');
-// if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
-//     sessionStorage.removeItem("reloaded");
-//     window.location.href = "/";
-// } else {
-//     sessionStorage.setItem("reloaded", "true");
-// }
+if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
+    sessionStorage.removeItem("reloaded");
+    window.location.href = "/";
+}
+else {
+    sessionStorage.setItem("reloaded", "true");
+}
 const playerName = prompt('Enter your name:');
 if (!lobbyId || !playerName) {
     window.location.href = '/';
@@ -33,6 +34,15 @@ ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
         updateLobby(data); // Aktualizacja lobby
+        // Update Start Game button based on host status
+        if (data.players[0] === playerName) { // Gracz jest gospodarzem
+            startGameButton.disabled = false;
+            startGameButton.style.cursor = 'pointer';
+        }
+        else { // Gracz nie jest gospodarzem
+            startGameButton.disabled = true;
+            startGameButton.style.cursor = 'not-allowed';
+        }
     }
 };
 copyImg.addEventListener('click', () => __awaiter(void 0, void 0, void 0, function* () {
@@ -45,6 +55,19 @@ copyImg.addEventListener('click', () => __awaiter(void 0, void 0, void 0, functi
         }
     }
 }));
+const startGameButton = document.getElementById('startGame');
+const leaveLobbyButton = document.getElementById('leaveLobby');
+startGameButton === null || startGameButton === void 0 ? void 0 : startGameButton.addEventListener('click', () => {
+    if (lobbyId && playerName && !startGameButton.disabled) {
+        ws.send(JSON.stringify({ action: 'startGame', lobbyId, playerName })); // Wysłanie prośby o rozpoczęcie gry
+    }
+});
+leaveLobbyButton === null || leaveLobbyButton === void 0 ? void 0 : leaveLobbyButton.addEventListener('click', () => {
+    if (lobbyId && playerName) {
+        ws.send(JSON.stringify({ action: 'leave', lobbyId, playerName })); // Wysłanie prośby o opuszczenie lobby
+        window.location.href = '/';
+    }
+});
 window.addEventListener('beforeunload', () => {
     if (lobbyId && playerName) {
         ws.send(JSON.stringify({ action: 'leave', lobbyId, playerName })); // Wysłanie prośby o opuszczenie lobby
@@ -77,13 +100,13 @@ function updateLobby(data) {
         modeSwitch.disabled = false;
         slider.classList.remove('disabled');
         wildDiceImg.onclick = () => {
-            const newWildDiceState = !data.settings.wildDice; // Toggle wild dice state
-            sendSettingsUpdate(newWildDiceState, modeSwitch.checked ? 'elimination' : 'standard'); // Send updated state to the server
+            const newWildDiceState = !data.settings.wildDice; // Zmiana stanu wildDice
+            sendSettingsUpdate(newWildDiceState, modeSwitch.checked ? 'elimination' : 'standard'); // Wysyłanie aktualizacji ustawień
         };
         modeSwitch.onchange = () => {
             const newMode = modeSwitch.checked ? 'elimination' : 'standard';
             slider.setAttribute('data-mode', modeSwitch.checked ? 'Elimination' : 'Standard');
-            sendSettingsUpdate(data.settings.wildDice, newMode); // Send updated mode to the server
+            sendSettingsUpdate(data.settings.wildDice, newMode); // Wysyłanie aktualizacji ustawień
         };
     }
     else {
