@@ -1,23 +1,54 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId = urlParams.get('lobbyId');
+// if (sessionStorage.getItem("reloaded")) { // Sprawdzenie, czy strona została odświeżona
+//     sessionStorage.removeItem("reloaded");
+//     window.location.href = "/";
+// } else {
+//     sessionStorage.setItem("reloaded", "true");
+// }
 const playerName = prompt('Enter your name:');
+if (!lobbyId || !playerName) {
+    window.location.href = '/';
+    throw new Error('Missing lobbyId or playerName, redirecting to homepage.');
+}
 const ws = new WebSocket('ws://' + window.location.host);
-document.getElementById('lobbyInfo').innerText = `You are in lobby: ${lobbyId}`;
+const copyImg = document.getElementById('copy');
+document.getElementById('idLobby').innerText = `${lobbyId}`;
 ws.onopen = () => {
     if (lobbyId && playerName) {
-        ws.send(JSON.stringify({ action: 'join', lobbyId, playerName }));
+        ws.send(JSON.stringify({ action: 'join', lobbyId, playerName })); // Wysłanie prośby dołączenia do lobby
     }
 };
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.action === 'lobbyUpdate' && data.lobbyId === lobbyId) {
-        updateLobby(data);
+        updateLobby(data); // Aktualizacja lobby
     }
 };
+copyImg.addEventListener('click', () => __awaiter(void 0, void 0, void 0, function* () {
+    if (lobbyId) {
+        try {
+            yield navigator.clipboard.writeText(lobbyId);
+        }
+        catch (error) {
+            console.error('Error copying lobby link:', error);
+        }
+    }
+}));
 window.addEventListener('beforeunload', () => {
     if (lobbyId && playerName) {
-        ws.send(JSON.stringify({ action: 'leave', lobbyId, playerName }));
+        ws.send(JSON.stringify({ action: 'leave', lobbyId, playerName })); // Wysłanie prośby o opuszczenie lobby
+        window.location.href = '/';
     }
 });
 function updateLobby(data) {
@@ -25,39 +56,45 @@ function updateLobby(data) {
     if (!playerList)
         return;
     playerList.innerHTML = '';
+    if (data.players.length === 0) { // Sprawdzenie, czy są gracze w lobby
+        window.location.href = '/';
+    }
     data.players.forEach((player) => {
         const li = document.createElement('li');
         li.textContent = player;
         playerList.appendChild(li);
     });
-    const wildDiceCheckbox = document.getElementById('wildDice');
-    const modeSelect = document.getElementById('mode');
-    if (!wildDiceCheckbox || !modeSelect)
+    const wildDiceImg = document.getElementById('wildDiceImg');
+    const modeSwitch = document.getElementById('modeSwitch');
+    const slider = document.querySelector('.slider');
+    if (!wildDiceImg || !modeSwitch || !slider)
         return;
-    wildDiceCheckbox.checked = data.settings.wildDice;
-    modeSelect.value = data.settings.mode;
-    if (data.players[0] === playerName) {
-        wildDiceCheckbox.disabled = false;
-        modeSelect.disabled = false;
-        wildDiceCheckbox.onchange = () => {
-            sendSettingsUpdate();
+    wildDiceImg.src = data.settings.wildDice ? 'correct.png' : 'incorrect.png';
+    modeSwitch.checked = data.settings.mode === 'elimination';
+    slider.setAttribute('data-mode', data.settings.mode === 'elimination' ? 'Elimination' : 'Standard');
+    if (data.players[0] === playerName) { // Sprawdzenie, czy gracz jest gospodarzem
+        wildDiceImg.style.cursor = 'pointer';
+        modeSwitch.disabled = false;
+        slider.classList.remove('disabled');
+        wildDiceImg.onclick = () => {
+            const newWildDiceState = !data.settings.wildDice; // Toggle wild dice state
+            sendSettingsUpdate(newWildDiceState, modeSwitch.checked ? 'elimination' : 'standard'); // Send updated state to the server
         };
-        modeSelect.onchange = () => {
-            sendSettingsUpdate();
+        modeSwitch.onchange = () => {
+            const newMode = modeSwitch.checked ? 'elimination' : 'standard';
+            slider.setAttribute('data-mode', modeSwitch.checked ? 'Elimination' : 'Standard');
+            sendSettingsUpdate(data.settings.wildDice, newMode); // Send updated mode to the server
         };
     }
     else {
-        wildDiceCheckbox.disabled = true;
-        modeSelect.disabled = true;
+        wildDiceImg.style.cursor = 'not-allowed';
+        modeSwitch.disabled = true;
+        slider.classList.add('disabled');
     }
 }
-function sendSettingsUpdate() {
-    const wildDiceCheckbox = document.getElementById('wildDice');
-    const modeSelect = document.getElementById('mode');
-    if (!wildDiceCheckbox || !modeSelect || !lobbyId || !playerName)
+function sendSettingsUpdate(wildDice, mode) {
+    if (!lobbyId || !playerName)
         return;
-    const wildDice = wildDiceCheckbox.checked;
-    const mode = modeSelect.value;
     ws.send(JSON.stringify({
         action: 'updateSettings',
         lobbyId,

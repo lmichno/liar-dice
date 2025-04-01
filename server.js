@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const bodyParser = require('body-parser');
-const { v4: uuidv4 } = require('uuid');
 const { log } = require('console');
 
 // Express
@@ -33,8 +32,9 @@ app.post('/lobby', (req, res) => {
     const { action, lobbyId } = req.body;
 
     if (action === 'create') {
-        const newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase();
-        while (lobbies[newLobbyId]) {
+        const newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase(); // Generowanie ID lobby
+
+        while (lobbies[newLobbyId]) { // Sprawdzenie, czy lobby już istnieje
             newLobbyId = Math.random().toString(36).substring(2, 7).toLocaleUpperCase();
         }
         lobbies[newLobbyId] = { players: [] };
@@ -56,36 +56,48 @@ app.get('/lobby.js', (req, res) => {
 }
 );
 
-// WebSocket communication
+app.get('/copy.png', (req, res) => {
+    res.sendFile(__dirname + '/copy.png');
+});
+
+app.get('/incorrect.png', (req, res) => {
+    res.sendFile(__dirname + '/incorrect.png');
+});
+
+app.get('/correct.png', (req, res) => {
+    res.sendFile(__dirname + '/correct.png');
+});
+
+// Komunikacja websocket
 wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         const data = JSON.parse(message);
-        const { action, lobbyId, playerName, settings } = data;
+        const { action, lobbyId, playerName, settings } = data; // Dane odbierane od klienta
 
-        if (action === 'join') {
+        if (action === 'join') { // Dołączenie do lobby
             if (lobbies[lobbyId]) {
                 if (!lobbies[lobbyId].players.includes(playerName)) {
                     lobbies[lobbyId].players.push(playerName);
                 }
                 if (!lobbies[lobbyId].creator) {
-                    lobbies[lobbyId].creator = playerName; // First player is the creator
+                    lobbies[lobbyId].creator = playerName;
                 }
-                ws.lobbyId = lobbyId; // Track which lobby this client belongs to
+                ws.lobbyId = lobbyId;
                 broadcastLobbyUpdate(lobbyId);
             }
-        } else if (action === 'updateSettings') {
+        } else if (action === 'updateSettings') { // Aktualizacja ustawień lobby
             if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName) {
                 lobbies[lobbyId].settings = settings;
                 broadcastLobbyUpdate(lobbyId);
             }
-        } else if (action === 'leave') {
+        } else if (action === 'leave') { // Opuszczenie lobby
             if (lobbies[lobbyId]) {
                 lobbies[lobbyId].players = lobbies[lobbyId].players.filter((player) => player !== playerName);
                 if (lobbies[lobbyId].creator === playerName) {
-                    lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null; // Assign new creator or null
+                    lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null;
                 }
                 if (lobbies[lobbyId].players.length === 0) {
-                    delete lobbies[lobbyId]; // Remove empty lobby
+                    delete lobbies[lobbyId];
                 } else {
                     broadcastLobbyUpdate(lobbyId);
                 }
@@ -93,26 +105,25 @@ wss.on('connection', (ws) => {
         }
     });
 
-    ws.on('close', () => {
+    ws.on('close', () => { // Zamknięcie połączenia
         const lobbyId = ws.lobbyId;
         const playerName = ws.playerName;
         if (lobbyId && lobbies[lobbyId]) {
             lobbies[lobbyId].players = lobbies[lobbyId].players.filter((player) => player !== playerName);
             if (lobbies[lobbyId].creator === playerName) {
-                lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null; // Assign new creator or null
+                lobbies[lobbyId].creator = lobbies[lobbyId].players[0] || null;
             }
             if (lobbies[lobbyId].players.length === 0) {
-                delete lobbies[lobbyId]; // Remove empty lobby
+                delete lobbies[lobbyId];
             } else {
                 broadcastLobbyUpdate(lobbyId);
             }
         }
-        // Redirect to index.html and clear session data
         ws.send(JSON.stringify({ action: 'redirect', url: '/' }));
     });
 });
 
-// Broadcast lobby updates to all players in a specific lobby
+// Wysyłanie aktualizacji lobby
 function broadcastLobbyUpdate(lobbyId) {
     const lobby = lobbies[lobbyId];
     if (lobby) {
@@ -122,7 +133,7 @@ function broadcastLobbyUpdate(lobbyId) {
             players: lobby.players,
             settings: lobby.settings || { wildDice: false, mode: 'standard' },
         });
-        wss.clients.forEach((client) => {
+        wss.clients.forEach((client) => { // Wysyłanie wiadomości do wszystkich klientów
             if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
                 client.send(message);
             }

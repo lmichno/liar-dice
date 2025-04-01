@@ -16,9 +16,9 @@ var _a;
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'create' })
         });
-        const data = yield response.json();
+        const data = yield response.json(); // Oczekiwanie na odpowiedź z serwera
         if (data.lobbyId) {
-            window.location.href = `/lobby.html?lobbyId=${data.lobbyId}`;
+            window.location.href = `/lobby.html?lobbyId=${data.lobbyId}`; // Przekierowanie do lobby
         }
     }
     catch (error) {
@@ -48,9 +48,9 @@ submitJoinButton === null || submitJoinButton === void 0 ? void 0 : submitJoinBu
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'join', lobbyId })
         });
-        const data = yield response.json();
+        const data = yield response.json(); // Oczekiwanie na odpowiedź z serwera
         if (data.lobbyId) {
-            window.location.href = `/lobby.html?lobbyId=${data.lobbyId}`;
+            window.location.href = `/lobby.html?lobbyId=${data.lobbyId}`; // Przekierowanie do lobby
         }
         else {
             alert('Invalid Lobby ID');
