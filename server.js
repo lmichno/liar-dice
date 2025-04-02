@@ -76,7 +76,7 @@ app.get('/correct.png', (req, res) => {
 });
 
 
-
+// Endpointy do obsługi obrazków kości
 app.get('/dice1.png', (req, res) => {
     res.sendFile(__dirname + '/dice1.png');
 });
@@ -177,24 +177,6 @@ wss.on('connection', (ws) => {
                 const previousTurnPlayer = getPreviousPlayer(lobbyId); // Wzięcie poprzedniego gracza
                 const winner = challengerWins ? playerName : previousTurnPlayer;
                 const loser = challengerWins ? previousTurnPlayer : playerName;
-
-                // // Tryb standardowy
-                // if (lobby.settings?.mode === 'standard') {
-                //     const winnerPlayer = lobby.gameState.players.find(player => player.name === winner);
-                //     if (winnerPlayer) {
-                //         winnerPlayer.dice.pop(); // Zwycięzca traci jedną kość
-                //     }
-                // }
-
-                // // Tryb eliminacji
-                // if (lobby.settings?.mode === 'elimination') {
-                //     lobby.gameState.players = lobby.gameState.players.filter(player => player.name !== loser); // Usunięcie przegranego
-                // }
-
-                // // Przerzucenie wszystkich kości
-                // lobby.gameState.players.forEach(player => {
-                //     player.dice = rollDice(player.dice.length);
-                // });
 
                 // Pokazanie wyników wyzwania
                 wss.clients.forEach(client => {

@@ -205,12 +205,12 @@ function showChallengeResult(winner: string, totalDice: number, bet: { count: nu
         <p>Winner: ${winner}</p>
         <p>Total Dice Matching Bet: ${totalDice}${wildDice ? ' (including wild dice)' : ''}</p>
         <p>Bet: ${bet.count} x <img src="dice${bet.value}.png" alt="Dice ${bet.value}" style="width: 20px; height: 20px;"></p>
-        ${playerNameG === currentPlayer ? '<button id="closePopup">Close</button>' : '<p>Waiting for host to close...</p>'}
+        ${playerNameG === currentPlayer ? '<button id="closePopup">Next Round</button>' : '<p>Waiting for the challenge host...</p>'}
     `;
 
     document.body.appendChild(popup);
 
-    if (playerNameG === currentPlayer) {
+    if (playerNameG === currentPlayer) { // Rozpoczęcie kolejnej tury, gdy gospodarz kliknie dalej
         document.getElementById('closePopup')!.onclick = () => {
             wsG.send(JSON.stringify({ action: 'closePopup', lobbyId: lobbyIdG, playerName: playerNameG }));
         };
