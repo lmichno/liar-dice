@@ -28,6 +28,8 @@ wsG.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzący
     } else if (data.action === 'closePopup') {
         const popup = document.querySelector('div[style*="z-index: 1000"]');
         if (popup) document.body.removeChild(popup);
+        (document.getElementById('betButton') as HTMLButtonElement)!.disabled = false; // Włączenie przycisku zakupu
+        (document.getElementById('challengeButton') as HTMLButtonElement)!.disabled = false; // Włączenie przycisku wyzwania
 
         // Zakrycie kostek
         Array.from(document.getElementsByClassName('dice-img')).forEach((element) => {
@@ -38,6 +40,8 @@ wsG.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzący
 
         // Losowanie nowych kości
         wsG.send(JSON.stringify({ action: 'rollDice', lobbyId: lobbyIdG }));
+    } else if (data.action === 'gameEnd') {
+        showGameEnd(data.winner); // Pokazanie wyniku końcowego
     }
 };
 
@@ -215,4 +219,36 @@ function showChallengeResult(winner: string, totalDice: number, bet: { count: nu
             wsG.send(JSON.stringify({ action: 'closePopup', lobbyId: lobbyIdG, playerName: playerNameG }));
         };
     }
+}
+
+function showGameEnd(winner: string) {
+    const popup = document.createElement('div');
+    popup.style.position = 'fixed';
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    popup.style.color = 'white';
+    popup.style.padding = '20px';
+    popup.style.borderRadius = '10px';
+    popup.style.textAlign = 'center';
+    popup.style.zIndex = '1000';
+
+    popup.innerHTML = `
+        <h2>Game Over</h2>
+        <p>Winner: ${winner}</p>
+        <button id="returnToLobby">Return to Lobby</button>
+    `;
+
+    document.body.appendChild(popup);
+
+    document.getElementById('returnToLobby')!.onclick = () => {
+        window.location.href = '/';
+    };
+
+    // Disable further actions
+    const betButton = document.getElementById('betButton')! as HTMLButtonElement;
+    const challengeButton = document.getElementById('challengeButton')! as HTMLButtonElement;
+    betButton.disabled = true;
+    challengeButton.disabled = true;
 }

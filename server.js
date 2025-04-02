@@ -195,14 +195,10 @@ wss.on('connection', (ws) => {
                 broadcastGameUpdate(lobbyId);
             }
         } else if (action === 'closePopup') { // Obsługa zamknięcia popupa przez gospodarza
-
             const lobby = lobbies[lobbyId];
-
             if (lobby && lobby.gameState.currentTurn === playerName) {
-
                 const { currentBet } = lobby.gameState;
                 if (currentBet) {
-                    console.log(`Gracz ${playerName} wyzwał zakład: ${currentBet.count}x${currentBet.value}`);
 
                     const { count, value } = currentBet;
                     const wildDiceEnabled = lobby.settings?.wildDice || false;
@@ -218,18 +214,27 @@ wss.on('connection', (ws) => {
 
                     // Tryb standardowy
 
+                    const winnerPlayer = lobby.gameState.players.find(player => player.name === winner);
+
                     if (lobby.settings?.mode === 'standard') {
-                        const winnerPlayer = lobby.gameState.players.find(player => player.name === winner);
-
                         if (winnerPlayer) {
-
                             winnerPlayer.dice.pop(); // Zwycięzca traci jedną kość
+                            if (winnerPlayer.dice.length === 0) {
+                                // Wygrana w trybie standardowym
+                                broadcastGameEnd(lobbyId, winnerPlayer.name);
+                                return;
+                            }
                         }
                     }
 
                     // Tryb eliminacji
                     if (lobby.settings?.mode === 'elimination') {
-                        lobby.gameState.players = lobby.gameState.players.filter(player => player.name !== loser); // Usunięcie przegranego
+                        lobby.gameState.players = lobby.gameState.players.filter(player => player.name !== loser);
+                        if (lobby.gameState.players.length === 1) {
+                            // Wygrana w trybie eliminacji
+                            broadcastGameEnd(lobbyId, lobby.gameState.players[0].name);
+                            return;
+                        }
                     }
 
                     // Przerzucenie wszystkich kości
@@ -319,6 +324,20 @@ function broadcastGameUpdate(lobbyId) {
             }));
         }
     });
+}
+
+// Wysyłanie wiadomości o zakończeniu gry
+function broadcastGameEnd(lobbyId, winner) {
+    const message = JSON.stringify({
+        action: 'gameEnd',
+        winner,
+    });
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
+            client.send(message);
+        }
+    });
+    delete lobbies[lobbyId]; // Usunięcie lobby po zakończeniu gry
 }
 
 // Funkcja do rzucania kośćmi

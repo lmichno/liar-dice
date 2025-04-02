@@ -26,6 +26,8 @@ wsG.onmessage = (event) => {
         const popup = document.querySelector('div[style*="z-index: 1000"]');
         if (popup)
             document.body.removeChild(popup);
+        document.getElementById('betButton').disabled = false; // Włączenie przycisku zakupu
+        document.getElementById('challengeButton').disabled = false; // Włączenie przycisku wyzwania
         // Zakrycie kostek
         Array.from(document.getElementsByClassName('dice-img')).forEach((element) => {
             const img = element;
@@ -34,6 +36,9 @@ wsG.onmessage = (event) => {
         });
         // Losowanie nowych kości
         wsG.send(JSON.stringify({ action: 'rollDice', lobbyId: lobbyIdG }));
+    }
+    else if (data.action === 'gameEnd') {
+        showGameEnd(data.winner); // Pokazanie wyniku końcowego
     }
 };
 function updateGame(data) {
@@ -180,12 +185,39 @@ function showChallengeResult(winner, totalDice, bet, wildDice) {
         <p>Winner: ${winner}</p>
         <p>Total Dice Matching Bet: ${totalDice}${wildDice ? ' (including wild dice)' : ''}</p>
         <p>Bet: ${bet.count} x <img src="dice${bet.value}.png" alt="Dice ${bet.value}" style="width: 20px; height: 20px;"></p>
-        ${playerNameG === currentPlayer ? '<button id="closePopup">Close</button>' : '<p>Waiting for host to close...</p>'}
+        ${playerNameG === currentPlayer ? '<button id="closePopup">Next Round</button>' : '<p>Waiting for the challenge host...</p>'}
     `;
     document.body.appendChild(popup);
-    if (playerNameG === currentPlayer) {
+    if (playerNameG === currentPlayer) { // Rozpoczęcie kolejnej tury, gdy gospodarz kliknie dalej
         document.getElementById('closePopup').onclick = () => {
             wsG.send(JSON.stringify({ action: 'closePopup', lobbyId: lobbyIdG, playerName: playerNameG }));
         };
     }
+}
+function showGameEnd(winner) {
+    const popup = document.createElement('div');
+    popup.style.position = 'fixed';
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    popup.style.color = 'white';
+    popup.style.padding = '20px';
+    popup.style.borderRadius = '10px';
+    popup.style.textAlign = 'center';
+    popup.style.zIndex = '1000';
+    popup.innerHTML = `
+        <h2>Game Over</h2>
+        <p>Winner: ${winner}</p>
+        <button id="returnToLobby">Return to Lobby</button>
+    `;
+    document.body.appendChild(popup);
+    document.getElementById('returnToLobby').onclick = () => {
+        window.location.href = '/';
+    };
+    // Disable further actions
+    const betButton = document.getElementById('betButton');
+    const challengeButton = document.getElementById('challengeButton');
+    betButton.disabled = true;
+    challengeButton.disabled = true;
 }
