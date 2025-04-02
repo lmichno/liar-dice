@@ -124,6 +124,10 @@ wss.on('connection', (ws) => {
             }
         } else if (action === 'startGame') { // Rozpoczęcie gry
             if (lobbies[lobbyId] && lobbies[lobbyId].creator === playerName && lobbies[lobbyId].players.length >= 2) {
+                // Ustawienie domyślnego trybu na "standard", jeśli nie został wybrany
+                if (!lobbies[lobbyId].settings?.mode) {
+                    lobbies[lobbyId].settings = { ...lobbies[lobbyId].settings, mode: 'standard' };
+                }
                 lobbies[lobbyId].gameStarted = true; // Ustawienie flagi rozpoczęcia gry
                 lobbies[lobbyId].gameState = {
                     players: lobbies[lobbyId].players.map(name => ({ name, dice: rollDice(5) })),
@@ -154,8 +158,8 @@ wss.on('connection', (ws) => {
         } else if (action === 'placeBet') { // Obsługa zakładów
             const lobby = lobbies[lobbyId];
             if (lobby && lobby.gameState.currentTurn === playerName) {
-                const [count, value] = bet.split('x').map(Number); // Parse bet into count and value
-                lobby.gameState.currentBet = { count, value }; // Store bet as an object
+                const [count, value] = bet.split('x').map(Number); // Przekonwertowanie zakładu na liczbę i wartość
+                lobby.gameState.currentBet = { count, value }; // Ustawienie zakładu w stanie gry
                 lobby.gameState.currentTurn = getNextPlayer(lobbyId);
                 broadcastGameUpdate(lobbyId);
             }
@@ -170,10 +174,29 @@ wss.on('connection', (ws) => {
                 }, 0);
 
                 const challengerWins = totalDice < count;
-                const previousTurnPlayer = getPreviousPlayer(lobbyId); // Get the player who had the turn before
+                const previousTurnPlayer = getPreviousPlayer(lobbyId); // Wzięcie poprzedniego gracza
                 const winner = challengerWins ? playerName : previousTurnPlayer;
+                const loser = challengerWins ? previousTurnPlayer : playerName;
 
-                // Broadcast challenge result
+                // // Tryb standardowy
+                // if (lobby.settings?.mode === 'standard') {
+                //     const winnerPlayer = lobby.gameState.players.find(player => player.name === winner);
+                //     if (winnerPlayer) {
+                //         winnerPlayer.dice.pop(); // Zwycięzca traci jedną kość
+                //     }
+                // }
+
+                // // Tryb eliminacji
+                // if (lobby.settings?.mode === 'elimination') {
+                //     lobby.gameState.players = lobby.gameState.players.filter(player => player.name !== loser); // Usunięcie przegranego
+                // }
+
+                // // Przerzucenie wszystkich kości
+                // lobby.gameState.players.forEach(player => {
+                //     player.dice = rollDice(player.dice.length);
+                // });
+
+                // Pokazanie wyników wyzwania
                 wss.clients.forEach(client => {
                     if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
                         client.send(JSON.stringify({
@@ -186,9 +209,78 @@ wss.on('connection', (ws) => {
                     }
                 });
 
-                // Update game state for the next turn
+                // Aktualizacja stanu gry
+                broadcastGameUpdate(lobbyId);
+            }
+        } else if (action === 'closePopup') { // Obsługa zamknięcia popupa przez gospodarza
+
+            const lobby = lobbies[lobbyId];
+
+            if (lobby && lobby.gameState.currentTurn === playerName) {
+
+                const { currentBet } = lobby.gameState;
+                if (currentBet) {
+                    console.log(`Gracz ${playerName} wyzwał zakład: ${currentBet.count}x${currentBet.value}`);
+
+                    const { count, value } = currentBet;
+                    const wildDiceEnabled = lobby.settings?.wildDice || false;
+
+                    const totalDice = lobby.gameState.players.reduce((sum, player) => {
+                        return sum + player.dice.filter(die => die === value || (wildDiceEnabled && die === 1)).length;
+                    }, 0);
+
+                    const challengerWins = totalDice < count;
+                    const previousTurnPlayer = getPreviousPlayer(lobbyId);
+                    const winner = challengerWins ? playerName : previousTurnPlayer;
+                    const loser = challengerWins ? previousTurnPlayer : playerName;
+
+                    // Tryb standardowy
+
+                    if (lobby.settings?.mode === 'standard') {
+                        const winnerPlayer = lobby.gameState.players.find(player => player.name === winner);
+
+                        if (winnerPlayer) {
+
+                            winnerPlayer.dice.pop(); // Zwycięzca traci jedną kość
+                        }
+                    }
+
+                    // Tryb eliminacji
+                    if (lobby.settings?.mode === 'elimination') {
+                        lobby.gameState.players = lobby.gameState.players.filter(player => player.name !== loser); // Usunięcie przegranego
+                    }
+
+                    // Przerzucenie wszystkich kości
+                    lobby.gameState.players.forEach(player => {
+                        player.dice = rollDice(player.dice.length);
+                    });
+
+                    lobby.gameState.currentTurn = getNextPlayer(lobbyId); // Ustawienie następnego gracza
+
+                    // Resetowanie zakładu po wyzwaniu
+                    delete lobby.gameState.currentBet;
+                }
+
+
+                // Wysłanie wiadomości o zamknięciu popupa
+                wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
+                        client.send(JSON.stringify({ action: 'closePopup' }));
+                    }
+                });
+
+
+                // Aktualizacja stanu gry
                 lobby.gameState.currentTurn = getNextPlayer(lobbyId);
-                delete lobby.gameState.currentBet; // Reset the current bet
+                broadcastGameUpdate(lobbyId);
+
+            }
+        } else if (action === 'rollDice') { // Obsługa losowania nowych kości
+            const lobby = lobbies[lobbyId];
+            if (lobby) {
+                lobby.gameState.players.forEach(player => {
+                    player.dice = rollDice(player.dice.length);
+                });
                 broadcastGameUpdate(lobbyId);
             }
         }
@@ -221,7 +313,7 @@ function broadcastLobbyUpdate(lobbyId, gameStarted = false) {
             lobbyId,
             players: lobby.players,
             settings: lobby.settings || { wildDice: false, mode: 'standard' },
-            gameStarted, // Include gameStarted flag
+            gameStarted, // Branie pod uwagę stanu gry
         });
         wss.clients.forEach((client) => { // Wysyłanie wiadomości do wszystkich klientów
             if (client.readyState === WebSocket.OPEN && client.lobbyId === lobbyId) {
@@ -241,7 +333,7 @@ function broadcastGameUpdate(lobbyId) {
                 action: 'gameUpdate',
                 players: gameState.players,
                 currentTurn: gameState.currentTurn,
-                currentBet: gameState.currentBet // Send currentBet as an object
+                currentBet: gameState.currentBet // Wysłanie aktualnego zakładu
             }));
         }
     });

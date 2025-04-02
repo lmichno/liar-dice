@@ -17,7 +17,7 @@ const lobbyId = urlParams.get('lobbyId');
 //     sessionStorage.setItem("reloaded", "true");
 // }
 let playerName = prompt('Enter your name:');
-if (!playerName == null) {
+if (playerName === null) {
     playerName = 'Anonymous';
 }
 if (!lobbyId || !playerName) {

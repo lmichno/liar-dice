@@ -14,18 +14,30 @@ let gameState: { players: { name: string; dice: number[] }[]; currentTurn: strin
 
 let playerNameG: string | null = sessionStorage.getItem('playerName');
 
-wsG.onopen = () => {
+wsG.onopen = () => { // Otwarcie połączenia Websocket
     wsG.send(JSON.stringify({ action: 'joinGame', lobbyId: lobbyIdG }));
 };
 
-wsG.onmessage = (event: MessageEvent) => {
+wsG.onmessage = (event: MessageEvent) => { // Obsługa wiadomości przychodzących
     const data = JSON.parse(event.data);
-    console.log('Received data:', data); // Debugging line to check incoming data
 
     if (data.action === 'gameUpdate') {
-        updateGame(data);
+        updateGame(data); // Aktualizacja stanu gry
     } else if (data.action === 'challengeResult') {
-        showChallengeResult(data.winner, data.totalDice, data.bet, data.wildDice);
+        showChallengeResult(data.winner, data.totalDice, data.bet, data.wildDice); // Pokazanie wyniku wyzwania
+    } else if (data.action === 'closePopup') {
+        const popup = document.querySelector('div[style*="z-index: 1000"]');
+        if (popup) document.body.removeChild(popup);
+
+        // Zakrycie kostek
+        Array.from(document.getElementsByClassName('dice-img')).forEach((element) => {
+            const img = element as HTMLImageElement;
+            img.src = 'dice0.png';
+            img.alt = 'Hidden Dice';
+        });
+
+        // Losowanie nowych kości
+        wsG.send(JSON.stringify({ action: 'rollDice', lobbyId: lobbyIdG }));
     }
 };
 
@@ -65,7 +77,7 @@ function updateGame(data: { players: { name: string; dice: number[] }[]; current
 
     currentPlayer = data.currentTurn;
 
-    // Update last bet details
+    // Aktualizacja tury
     const lastBetDetails = document.getElementById('lastBetDetails')!;
     lastBetDetails.innerHTML = '';
     if (data.currentBet) {
@@ -162,20 +174,20 @@ function showChallengeResult(winner: string, totalDice: number, bet: { count: nu
     const betButton = document.getElementById('betButton')! as HTMLButtonElement;
     const challengeButton = document.getElementById('challengeButton')! as HTMLButtonElement;
 
-    // Disable buttons
+    // Wyłączenie przycisków w momencie pokazania wyniku
     betButton.disabled = true;
     challengeButton.disabled = true;
 
-    // Reveal all dice
+    // Ukazanie kostek
     setTimeout(() => {
         Array.from(document.getElementsByClassName('dice-img')).forEach((element) => {
             const img = element as HTMLImageElement;
             img.src = img.src.replace('dice0.png', `dice${img.id.replace('dice', '')}.png`);
             img.alt = `Dice ${img.id.replace('dice', '')}`;
         });
-    }, 1000); // Delay for 1 second before revealing
+    }, 200); // Opóźnienie
 
-    // Show popup
+    // Pokazanie popupa z wynikiem
     const popup = document.createElement('div');
     popup.style.position = 'fixed';
     popup.style.top = '50%';
@@ -193,16 +205,14 @@ function showChallengeResult(winner: string, totalDice: number, bet: { count: nu
         <p>Winner: ${winner}</p>
         <p>Total Dice Matching Bet: ${totalDice}${wildDice ? ' (including wild dice)' : ''}</p>
         <p>Bet: ${bet.count} x <img src="dice${bet.value}.png" alt="Dice ${bet.value}" style="width: 20px; height: 20px;"></p>
-        <button id="closePopup">Close</button>
+        ${playerNameG === currentPlayer ? '<button id="closePopup">Close</button>' : '<p>Waiting for host to close...</p>'}
     `;
 
     document.body.appendChild(popup);
 
-    document.getElementById('closePopup')!.onclick = () => {
-        document.body.removeChild(popup);
-
-        // Re-enable buttons
-        betButton.disabled = false;
-        challengeButton.disabled = false;
-    };
+    if (playerNameG === currentPlayer) {
+        document.getElementById('closePopup')!.onclick = () => {
+            wsG.send(JSON.stringify({ action: 'closePopup', lobbyId: lobbyIdG, playerName: playerNameG }));
+        };
+    }
 }
